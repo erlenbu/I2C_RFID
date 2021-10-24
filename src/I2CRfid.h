@@ -148,7 +148,81 @@ namespace I2CSlave
 {
   class I2CRfidSlave
   {
+    private:
+      static uint8_t m_Request;
+      static uint8_t m_RfidState;
+      static uint8_t m_NumReaders;
+
+      static void I2CWrite(uint8_t data) {
+        if(sizeof(data) != Wire.write(data)) {
+          Serial.print("ERROR: I2CWrite() write failed: return value ");
+          Serial.println(data);
+        }
+      }
+
+      static void receiveEvent(int num_bytes) {
+        if(num_bytes == 1)
+        {
+          m_Request = Wire.read();
+
+          // if(m_Request)
+
+          // switch (Wire.read())
+          // {
+          // case I2C_Request::INIT:
+          //   // Serial.println("Got request INIT");
+          //   m_Request = I2C_Request::INIT;
+          //   break;
+          // case I2C_Request::STATUS:
+          //   // Serial.println("Got request STATUS");
+          //   m_Request = I2C_Request::STATUS;
+          //   break;
+          // default:
+          //   Serial.println("Unknown request!");
+          //   m_Request = -1;
+          //   break;
+          // }
+        }
+        else
+        {
+          Serial.println("Incorrect message size");
+        }
+      }
+
+      static void requestEvent() {
+        if(m_Request == I2C_Request::STATUS)
+        {
+          // Wire.write(rfid_state);
+          I2CWrite(m_RfidState);
+        }
+        else if(m_Request == I2C_Request::INIT) //Tell how many readers
+        {
+          // Wire.write(NUM_READERS);
+          I2CWrite(m_NumReaders);
+        }
+        else
+        {
+          Serial.println("Unknown request");
+        }
+      }
+
+
+    public:
+      I2CRfidSlave(int slave_no) {
+        Wire.begin(slave_no);
+        Wire.onRequest(requestEvent);
+        Wire.onReceive(receiveEvent);
+      }
+
+      ~I2CRfidSlave() {}
+
+      inline void setRfidState(uint8_t state) { m_RfidState = state; Serial.print("setRfidState(): "); Serial.println(m_RfidState, BIN); }
+      inline void setRfidReaderAmount(uint8_t state) { m_RfidState = state; }
 
   };
+
+  uint8_t I2CRfidSlave::m_Request = 0;
+  uint8_t I2CRfidSlave::m_RfidState = 0;
+  uint8_t I2CRfidSlave::m_NumReaders = 0;
 }
 #endif
