@@ -4,8 +4,9 @@
 #include <Arduino.h>
 
 enum I2C_Request {
-  INIT = 0,
-  STATUS = 1
+  SENSOR_AMOUNT = 0,
+  STATUS = 1,
+  CLEAR_UID_CACHE = 2
 };
 
 
@@ -22,7 +23,7 @@ namespace I2CMaster
     RFIDSlaveObject(uint8_t slave_no) : m_SlaveNumber(slave_no) { }
     ~RFIDSlaveObject() {}
     inline int getRFIDStatus()   { return makeRequest(I2C_Request::STATUS); }
-    inline int getReaderAmount() { return makeRequest(I2C_Request::INIT);   }
+    inline int getReaderAmount() { return makeRequest(I2C_Request::SENSOR_AMOUNT);   }
 
   private:
     uint8_t m_SlaveNumber;
@@ -56,7 +57,6 @@ namespace I2CMaster
           Serial.println("ERROR: Wire::read() returned -1");
           return -1;
         }
-        // Serial.println(data, BIN);     
       }
 
       return data;
@@ -88,7 +88,6 @@ namespace I2CMaster
       m_SlaveAmount += 1;
       m_SlaveArray = (RFIDSlaveObject*)realloc(m_SlaveArray, m_SlaveAmount * sizeof(RFIDSlaveObject));
       m_SlaveArray[m_SlaveAmount-1] = RFIDSlaveObject(slave_no);
-      // m_SlaveArray[m_SlaveAmount-1].hello();
       m_SlaveArrayMapping = (uint8_t*)realloc(m_SlaveArrayMapping, m_SlaveAmount * sizeof(uint8_t));
       m_SlaveArrayMapping[m_SlaveAmount-1] = slave_no;
       Serial.print("Amount of slaves: "); Serial.println(m_SlaveAmount);
@@ -161,47 +160,25 @@ namespace I2CSlave
       }
 
       static void receiveEvent(int num_bytes) {
-        if(num_bytes == 1)
-        {
+        if(num_bytes == 1) {
           m_Request = Wire.read();
-
-          // if(m_Request)
-
-          // switch (Wire.read())
-          // {
-          // case I2C_Request::INIT:
-          //   // Serial.println("Got request INIT");
-          //   m_Request = I2C_Request::INIT;
-          //   break;
-          // case I2C_Request::STATUS:
-          //   // Serial.println("Got request STATUS");
-          //   m_Request = I2C_Request::STATUS;
-          //   break;
-          // default:
-          //   Serial.println("Unknown request!");
-          //   m_Request = -1;
-          //   break;
-          // }
         }
-        else
-        {
+        else {
           Serial.println("Incorrect message size");
         }
       }
 
       static void requestEvent() {
-        if(m_Request == I2C_Request::STATUS)
-        {
-          // Wire.write(rfid_state);
+        if(m_Request == I2C_Request::STATUS) {
           I2CWrite(m_RfidState);
         }
-        else if(m_Request == I2C_Request::INIT) //Tell how many readers
-        {
-          // Wire.write(NUM_READERS);
+        else if(m_Request == I2C_Request::SENSOR_AMOUNT) {
           I2CWrite(m_NumReaders);
         }
-        else
-        {
+        else if(m_Request == I2C_Request::CLEAR_UID_CACHE) {
+
+        }
+        else {
           Serial.println("Unknown request");
         }
       }
@@ -212,12 +189,13 @@ namespace I2CSlave
         Wire.begin(slave_no);
         Wire.onRequest(requestEvent);
         Wire.onReceive(receiveEvent);
+        m_Request = I2C_Request::STATUS;
       }
 
       ~I2CRfidSlave() {}
 
       inline void setRfidState(uint8_t state) { m_RfidState = state; Serial.print("setRfidState(): "); Serial.println(m_RfidState, BIN); }
-      inline void setRfidReaderAmount(uint8_t state) { m_RfidState = state; }
+      inline void setRfidReaderAmount(uint8_t num) { m_NumReaders = num; }
 
   };
 
