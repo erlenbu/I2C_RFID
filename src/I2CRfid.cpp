@@ -39,7 +39,6 @@ namespace I2CMaster
   }
 
 
-
   I2CRfidMaster::I2CRfidMaster()
   : m_SlaveAmount(0), m_RfidHandler(RfidHandler())
   {
@@ -137,73 +136,73 @@ namespace I2CMaster
 
 namespace I2CSlave
 {
-    uint8_t I2CRfidSlave::m_Request = 0;
-    uint8_t I2CRfidSlave::m_RfidState = 0;
-    RfidHandler I2CRfidSlave::m_RfidHandler = RfidHandler();
+  uint8_t I2CRfidSlave::m_Request = 0;
+  uint8_t I2CRfidSlave::m_RfidState = 0;
+  RfidHandler I2CRfidSlave::m_RfidHandler = RfidHandler();
 
-    I2CRfidSlave::I2CRfidSlave(int slave_no) {
-      Wire.begin(slave_no);
-      Wire.onRequest(requestEvent);
-      Wire.onReceive(receiveEvent);
-      m_Request = I2C_Request::STATUS;
+  I2CRfidSlave::I2CRfidSlave(int slave_no) {
+    Wire.begin(slave_no);
+    Wire.onRequest(requestEvent);
+    Wire.onReceive(receiveEvent);
+    m_Request = I2C_Request::STATUS;
+  }
+
+  I2CRfidSlave::~I2CRfidSlave() {}
+
+  void I2CRfidSlave::I2CWrite(uint8_t data) {
+    if(sizeof(data) != Wire.write(data)) {
+      Serial.print("ERROR: I2CWrite() write failed: return value ");
+      Serial.println(data);
     }
-
-    I2CRfidSlave::~I2CRfidSlave() {}
-
-    void I2CRfidSlave::I2CWrite(uint8_t data) {
-      if(sizeof(data) != Wire.write(data)) {
-        Serial.print("ERROR: I2CWrite() write failed: return value ");
-        Serial.println(data);
-      }
+  }
+  
+  void I2CRfidSlave::receiveEvent(int num_bytes) {
+    if(num_bytes == 1) {
+      m_Request = Wire.read();
     }
+    else {
+      Serial.println("Incorrect message size");
+    }
+  }
 
-    void I2CRfidSlave::receiveEvent(int num_bytes) {
-      if(num_bytes == 1) {
-          m_Request = Wire.read();
+  void I2CRfidSlave::requestEvent() {
+    if(m_Request == I2C_Request::STATUS) {
+      I2CWrite(m_RfidState);
+    }
+    else if(m_Request == I2C_Request::SENSOR_AMOUNT) {
+      I2CWrite(m_RfidHandler.getReaderAmount());
+    }
+    else if(m_Request == I2C_Request::CLEAR_UID_CACHE) {
+      Serial.println("Clearing cache!");
+      clearCache();
+    }
+    else {
+      Serial.println("Unknown request");
+    }
+  }
+
+  void I2CRfidSlave::tagChangeEvent(int id, bool state) {
+      if(true == state) {
+        bitSet(m_RfidState, id);
       }
       else {
-          Serial.println("Incorrect message size");
+        bitClear(m_RfidState, id);
       }
-    }
+  }
 
-    void I2CRfidSlave::requestEvent() {
-        if(m_Request == I2C_Request::STATUS) {
-            I2CWrite(m_RfidState);
-        }
-        else if(m_Request == I2C_Request::SENSOR_AMOUNT) {
-            I2CWrite(m_RfidHandler.getReaderAmount());
-        }
-        else if(m_Request == I2C_Request::CLEAR_UID_CACHE) {
-            Serial.println("Clearing cache!");
-            clearCache();
-        }
-        else {
-            Serial.println("Unknown request");
-        }
-    }
+  void I2CRfidSlave::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
+    m_RfidHandler.addRfidReader(ss_pin, rst_pin, tagChangeEvent, companion_tag);
+  }
 
-    void I2CRfidSlave::tagChangeEvent(int id, bool state) {
-        if(true == state) {
-            bitSet(m_RfidState, id);
-        }
-        else {
-            bitClear(m_RfidState, id);
-        }
+  void I2CRfidSlave::clearCache() {
+    if(m_RfidHandler.getReaderAmount() > 0) {
+      m_RfidHandler.clearCache();
     }
+  }
 
-    void I2CRfidSlave::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
-      m_RfidHandler.addRfidReader(ss_pin, rst_pin, tagChangeEvent, companion_tag);
+  void I2CRfidSlave::read() {
+    if(m_RfidHandler.getReaderAmount() > 0) {
+      m_RfidHandler.read();
     }
-
-    void I2CRfidSlave::clearCache() {
-      if(m_RfidHandler.getReaderAmount() > 0) {
-        m_RfidHandler.clearCache();
-      }
-    }
-
-    void I2CRfidSlave::read() {
-      if(m_RfidHandler.getReaderAmount() > 0) {
-        m_RfidHandler.read();
-      }
-    }
+  }
 }
