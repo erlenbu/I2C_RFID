@@ -44,18 +44,23 @@ namespace I2CMaster
 
     void addI2CSlave(uint8_t slave_no);
 
-    // inline uint8_t getSlaveSensorAmount() { return m_SlaveAmount; }
-
     int getSlaveRFIDStatus(uint8_t slave_no);
 
     int getSlaveRFIDSensorAmount(uint8_t slave_no);
 
     void clearSlaveCache(uint8_t slave_no);
 
+    void addRfidReader(uint8_t ss_pin, uint8_t rst_pin, void(*callback)(int,bool), UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}});
+
+    void clearCache();
+
+    void read();
+
   private:
     RFIDSlaveObject* m_SlaveArray;
     uint8_t* m_SlaveArrayMapping;
     uint8_t m_SlaveAmount;
+    RfidHandler m_RfidHandler;
 
     uint8_t getSlaveArrayElement(uint8_t slave_no);
   };
@@ -80,11 +85,9 @@ namespace I2CSlave
       void read();
 
     private:
-      // static RfidReader* m_ReaderArray;
       static uint8_t m_Request;
       static uint8_t m_RfidState;
       static RfidHandler m_RfidHandler;
-      // static uint8_t m_NumReaders;
 
       static void I2CWrite(uint8_t data);
 
