@@ -139,7 +139,6 @@ namespace I2CSlave
         Wire.onReceive(receiveEvent);
         m_Request = I2C_Request::STATUS;
         // m_ReaderArray = (RfidReader*)malloc(sizeof(RfidReader));
-
         // m_NumReaders = 0;
     }
 
@@ -177,10 +176,20 @@ namespace I2CSlave
         }
     }
 
+     void I2CRfidSlave::tagChangeEvent(int id, bool state) {
+        if(true == state) {
+            bitSet(m_RfidState, id);
+        }
+        else {
+            bitClear(m_RfidState, id);
+        }
+     }
+
     void I2CRfidSlave::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
         m_NumReaders += 1;
         m_ReaderArray = (RfidReader*)realloc(m_ReaderArray, m_NumReaders * sizeof(RfidReader));
         m_ReaderArray[m_NumReaders - 1] = RfidReader(ss_pin, rst_pin, (m_NumReaders - 1), companion_tag);
+        m_ReaderArray[m_NumReaders -1 ].setCallback(tagChangeEvent);
         Serial.print("Added rfid reader, amount of readers: "); Serial.println(m_NumReaders);
     }
 

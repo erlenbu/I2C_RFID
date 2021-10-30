@@ -80,6 +80,8 @@ namespace I2CSlave
 
       static void requestEvent();
 
+      static  void tagChangeEvent(int id, bool state);
+
 
     public:
       I2CRfidSlave(int slave_no);
@@ -91,10 +93,6 @@ namespace I2CSlave
       static void clearCache();
 
       void read();
-
-      inline void setRfidState(uint8_t state) { m_RfidState = state; Serial.print("setRfidState(): "); Serial.println(m_RfidState, BIN); }
-      inline void setRfidReaderAmount(uint8_t num) { }//m_NumReaders = num; }
-
   };
 }
 #endif
