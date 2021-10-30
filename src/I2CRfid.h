@@ -1,7 +1,7 @@
 #ifndef I2C_RFID_H
 #define I2C_RFID_H
 
-#include <Wire.h>
+#include <WSWire.h>
 #include <Arduino.h>
 #include "RfidReader.h"
 
@@ -41,11 +41,10 @@ namespace I2CMaster
     I2CRfidMaster();
     ~I2CRfidMaster();
 
-    inline uint8_t getSlaveAmount() { return m_SlaveAmount; }
 
     void addI2CSlave(uint8_t slave_no);
 
-    uint8_t getSlaveArrayElement(uint8_t slave_no);
+    // inline uint8_t getSlaveSensorAmount() { return m_SlaveAmount; }
 
     int getSlaveRFIDStatus(uint8_t slave_no);
 
@@ -57,6 +56,8 @@ namespace I2CMaster
     RFIDSlaveObject* m_SlaveArray;
     uint8_t* m_SlaveArrayMapping;
     uint8_t m_SlaveAmount;
+
+    uint8_t getSlaveArrayElement(uint8_t slave_no);
   };
 
 }
@@ -67,22 +68,6 @@ namespace I2CSlave
 {
   class I2CRfidSlave
   {
-
-    private:
-      static RfidReader* m_ReaderArray;
-      static uint8_t m_Request;
-      static uint8_t m_RfidState;
-      static uint8_t m_NumReaders;
-
-      static void I2CWrite(uint8_t data);
-
-      static void receiveEvent(int num_bytes);
-
-      static void requestEvent();
-
-      static  void tagChangeEvent(int id, bool state);
-
-
     public:
       I2CRfidSlave(int slave_no);
 
@@ -93,6 +78,21 @@ namespace I2CSlave
       static void clearCache();
 
       void read();
+
+    private:
+      // static RfidReader* m_ReaderArray;
+      static uint8_t m_Request;
+      static uint8_t m_RfidState;
+      static RfidHandler m_RfidHandler;
+      // static uint8_t m_NumReaders;
+
+      static void I2CWrite(uint8_t data);
+
+      static void receiveEvent(int num_bytes);
+
+      static void requestEvent();
+
+      static  void tagChangeEvent(int id, bool state);
   };
 }
 #endif

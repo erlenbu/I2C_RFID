@@ -42,25 +42,20 @@ namespace I2CMaster
       return data;
     }
 
+    I2CRfidMaster::I2CRfidMaster()
+    : m_SlaveAmount(0)
+    {
+      Wire.begin();
+      m_SlaveArray = (RFIDSlaveObject*)malloc(sizeof(RFIDSlaveObject));
+      m_SlaveArrayMapping = (uint8_t*)malloc(sizeof(uint8_t));
+    }
 
-
-
-
-
-      I2CRfidMaster::I2CRfidMaster()
-      : m_SlaveAmount(0)
-      {
-        Wire.begin();
-        m_SlaveArray = (RFIDSlaveObject*)malloc(sizeof(RFIDSlaveObject));
-        m_SlaveArrayMapping = (uint8_t*)malloc(sizeof(uint8_t));
-      }
-
-      I2CRfidMaster::~I2CRfidMaster()
-      {
-        free(m_SlaveArray);
-        free(m_SlaveArrayMapping);
-        free(m_SlaveAmount);
-      }
+    I2CRfidMaster::~I2CRfidMaster()
+    {
+      free(m_SlaveArray);
+      free(m_SlaveArrayMapping);
+      free(m_SlaveAmount);
+    }
 
     void I2CRfidMaster::addI2CSlave(uint8_t slave_no)
     {
@@ -130,34 +125,34 @@ namespace I2CSlave
 {
     uint8_t I2CRfidSlave::m_Request = 0;
     uint8_t I2CRfidSlave::m_RfidState = 0;
-    uint8_t I2CRfidSlave::m_NumReaders = 0;
-    RfidReader* I2CRfidSlave::m_ReaderArray = nullptr;
+    // uint8_t I2CRfidSlave::m_NumReaders = 0;
+    // RfidReader* I2CRfidSlave::m_ReaderArray = nullptr;
 
     I2CRfidSlave::I2CRfidSlave(int slave_no) {
-        Wire.begin(slave_no);
-        Wire.onRequest(requestEvent);
-        Wire.onReceive(receiveEvent);
-        m_Request = I2C_Request::STATUS;
-        // m_ReaderArray = (RfidReader*)malloc(sizeof(RfidReader));
-        // m_NumReaders = 0;
+      Wire.begin(slave_no);
+      Wire.onRequest(requestEvent);
+      Wire.onReceive(receiveEvent);
+      m_Request = I2C_Request::STATUS;
+      // m_ReaderArray = (RfidReader*)malloc(sizeof(RfidReader));
+      // m_NumReaders = 0;
     }
 
     I2CRfidSlave::~I2CRfidSlave() {}
 
     void I2CRfidSlave::I2CWrite(uint8_t data) {
-    if(sizeof(data) != Wire.write(data)) {
+      if(sizeof(data) != Wire.write(data)) {
         Serial.print("ERROR: I2CWrite() write failed: return value ");
         Serial.println(data);
-    }
+      }
     }
 
     void I2CRfidSlave::receiveEvent(int num_bytes) {
-    if(num_bytes == 1) {
-        m_Request = Wire.read();
-    }
-    else {
-        Serial.println("Incorrect message size");
-    }
+      if(num_bytes == 1) {
+          m_Request = Wire.read();
+      }
+      else {
+          Serial.println("Incorrect message size");
+      }
     }
 
     void I2CRfidSlave::requestEvent() {
@@ -165,7 +160,7 @@ namespace I2CSlave
             I2CWrite(m_RfidState);
         }
         else if(m_Request == I2C_Request::SENSOR_AMOUNT) {
-            I2CWrite(m_NumReaders);
+            //I2CWrite(m_NumReaders);
         }
         else if(m_Request == I2C_Request::CLEAR_UID_CACHE) {
             Serial.println("Clearing cache!");
@@ -176,55 +171,28 @@ namespace I2CSlave
         }
     }
 
-     void I2CRfidSlave::tagChangeEvent(int id, bool state) {
+    void I2CRfidSlave::tagChangeEvent(int id, bool state) {
         if(true == state) {
             bitSet(m_RfidState, id);
         }
         else {
             bitClear(m_RfidState, id);
         }
-     }
+    }
 
     void I2CRfidSlave::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
-        m_NumReaders += 1;
-        m_ReaderArray = (RfidReader*)realloc(m_ReaderArray, m_NumReaders * sizeof(RfidReader));
-        m_ReaderArray[m_NumReaders - 1] = RfidReader(ss_pin, rst_pin, (m_NumReaders - 1), companion_tag);
-        m_ReaderArray[m_NumReaders -1 ].setCallback(tagChangeEvent);
-        Serial.print("Added rfid reader, amount of readers: "); Serial.println(m_NumReaders);
+      m_RfidHandler.addRfidReader(ss_pin, rst_pin, tagChangeEvent, companion_tag);
     }
 
     void I2CRfidSlave::clearCache() {
-        Serial.println("Clearing cache");
-        for(uint8_t reader = 0; reader < m_NumReaders; reader++) {
-            m_ReaderArray[reader].clearUidCache();
-        }
+      if(m_RfidHandler.getReaderAmount() > 0) {
+        m_RfidHandler.clearCache();
+      }
     }
 
-    // void I2CRfidSlave::getTagStatus() {
-
-    // }
-
     void I2CRfidSlave::read() {
-        for(uint8_t reader = 0; reader < m_NumReaders; reader++) {
-            if(true == m_ReaderArray[reader].read())
-            {
-            if(true == m_ReaderArray[reader].isResponseValid())
-            {
-                if(true == m_ReaderArray[reader].checkNewTag())
-                {
-                //need to set m_RfidState
-                }
-            }
-            else
-            {
-                // Serial.println("Invalid response");
-            }
-            }
-            else 
-            {
-            Serial.print("Reader "); Serial.print(reader);
-            Serial.println(" read() error");
-            }
-        }
+      if(m_RfidHandler.getReaderAmount() > 0) {
+        m_RfidHandler.read();
+      }
     }
 }
