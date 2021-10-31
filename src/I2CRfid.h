@@ -88,14 +88,15 @@ namespace I2CSlave
       static uint8_t m_Request;
       static uint8_t m_RfidState;
       static RfidHandler m_RfidHandler;
+      static byte* m_States;
 
-      static void I2CWrite(uint8_t data);
+      static void I2CWrite(byte* data, uint8_t length = 1);
 
       static void receiveEvent(int num_bytes);
 
       static void requestEvent();
 
-      static  void tagChangeEvent(int id, bool state);
+      static  void tagChangeEvent(int id, TAG_STATUS state);
   };
 }
 #endif

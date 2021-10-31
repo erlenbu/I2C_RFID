@@ -139,6 +139,7 @@ namespace I2CSlave
   uint8_t I2CRfidSlave::m_Request = 0;
   uint8_t I2CRfidSlave::m_RfidState = 0;
   RfidHandler I2CRfidSlave::m_RfidHandler = RfidHandler();
+  byte* I2CRfidSlave::m_States = nullptr;
 
   I2CRfidSlave::I2CRfidSlave(int slave_no) {
     Wire.begin(slave_no);
@@ -149,10 +150,13 @@ namespace I2CSlave
 
   I2CRfidSlave::~I2CRfidSlave() {}
 
-  void I2CRfidSlave::I2CWrite(uint8_t data) {
-    if(sizeof(data) != Wire.write(data)) {
-      Serial.print("ERROR: I2CWrite() write failed: return value ");
-      Serial.println(data);
+  void I2CRfidSlave::I2CWrite(byte* data, uint8_t length) {
+    for(int byte = 0; byte < length; byte++)
+    {
+      if(sizeof(data[byte]) != Wire.write(data[byte])) {
+        Serial.print("ERROR: I2CWrite() write failed: return value ");
+        Serial.println(data[byte]);
+      }
     }
   }
   
@@ -166,11 +170,12 @@ namespace I2CSlave
   }
 
   void I2CRfidSlave::requestEvent() {
+    uint8_t reader_amount = m_RfidHandler.getReaderAmount();
     if(m_Request == I2C_Request::STATUS) {
-      I2CWrite(m_RfidState);
+      I2CWrite(m_States, reader_amount);
     }
     else if(m_Request == I2C_Request::SENSOR_AMOUNT) {
-      I2CWrite(m_RfidHandler.getReaderAmount());
+      I2CWrite(&reader_amount, sizeof(reader_amount));
     }
     else if(m_Request == I2C_Request::CLEAR_UID_CACHE) {
       Serial.println("Clearing cache!");
@@ -181,17 +186,21 @@ namespace I2CSlave
     }
   }
 
-  void I2CRfidSlave::tagChangeEvent(int id, bool state) {
-      if(true == state) {
-        bitSet(m_RfidState, id);
-      }
-      else {
-        bitClear(m_RfidState, id);
-      }
+  void I2CRfidSlave::tagChangeEvent(int id, TAG_STATUS state) {
+    m_States[id] = state;
+    Serial.print("Reader "); Serial.print(id); Serial.print(" state "); Serial.println(m_States[id]);
+    for(int i = 0; i < m_RfidHandler.getReaderAmount(); i++)
+    {
+      Serial.print(m_States[i]);
+    }
+    Serial.println();
+
   }
 
   void I2CRfidSlave::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
     m_RfidHandler.addRfidReader(ss_pin, rst_pin, tagChangeEvent, companion_tag);
+    m_States = (byte*) realloc(m_States, m_RfidHandler.getReaderAmount() * sizeof(byte));
+    for(int i = 0; i < m_RfidHandler.getReaderAmount(); i++) { m_States[i] = 0; }
   }
 
   void I2CRfidSlave::clearCache() {
