@@ -4,8 +4,32 @@
 
 namespace I2CMaster
 {
-  int RFIDSlaveObject::makeRequest(I2C_Request request) {
+
+  int RFIDSlaveObject::getReaderAmount() {
+    int reader_amount = makeRequest(I2C_Request::SENSOR_AMOUNT);
+    Serial.print("getReaderAmount(): "); Serial.println(reader_amount);
+    if(reader_amount != -1) 
+    {
+      m_Readers = reader_amount;
+    }
+    return reader_amount;   
+  }
+
+  int RFIDSlaveObject::getRFIDStatus() { 
+    int status = -1;
+    if(m_Readers > 0) {
+      status = makeRequest(I2C_Request::STATUS, m_Readers*sizeof(byte));
+    }
+    return status;
+  }
+
+  int RFIDSlaveObject::makeRequest(I2C_Request request, int len) {
     int data;
+
+    if(len <= 0) {
+      Serial.print("ERROR makeRequest() invalid len value: "); Serial.println(len);
+      return -1;
+    }
 
     Wire.beginTransmission(m_SlaveNumber);
 
@@ -20,20 +44,22 @@ namespace I2CMaster
       return -1;
     }
 
-    int bytes = Wire.requestFrom((int)m_SlaveNumber, 1);
+    int bytes = Wire.requestFrom((int)m_SlaveNumber, len);
     //RFID status is 1 byte long
-    if(1 != bytes) {
+    if(len != bytes) {
       Serial.print("RFID status wrong length: "); Serial.println(bytes);
       return -1;
     }
 
     while (Wire.available()) {
       data = Wire.read();
+      Serial.print(data);
       if(-1 == data) {
         Serial.println("ERROR: Wire::read() returned -1");
         return -1;
       }
     }
+    Serial.println();
 
     return data;
   }
@@ -114,7 +140,7 @@ namespace I2CMaster
     }
   }
 
-  void I2CRfidMaster::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, void(*callback)(int,bool), UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
+  void I2CRfidMaster::addRfidReader(uint8_t ss_pin, uint8_t rst_pin, void(*callback)(int,TAG_STATUS), UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}) {
     m_RfidHandler.addRfidReader(ss_pin, rst_pin, callback, companion_tag);
 
   }
