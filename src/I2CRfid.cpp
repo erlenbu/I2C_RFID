@@ -5,26 +5,50 @@
 namespace I2CMaster
 {
 
-  int RFIDSlaveObject::getReaderAmount() {
-    int reader_amount = makeRequest(I2C_Request::SENSOR_AMOUNT);
-    Serial.print("getReaderAmount(): "); Serial.println(reader_amount);
-    if(reader_amount != -1) 
+  int RFIDSlaveObject::readSlaveReaderAmount(byte& data) {
+    return makeRequest(I2C_Request::SENSOR_AMOUNT, &data);   
+  }
+
+  int RFIDSlaveObject::readSlaveRfidStatus(byte* data) { 
+    return makeRequest(I2C_Request::STATUS, data, m_ReaderAmount*sizeof(byte));
+  }
+
+  bool RFIDSlaveObject::checkSlaveRfidStatus()
+  {
+    if(m_ReaderAmount > 0)
     {
-      m_Readers = reader_amount;
+      byte rfid_status[m_ReaderAmount];
+      if(-1 != readSlaveRfidStatus(rfid_status))
+      {
+        for(int i = 0; i < m_ReaderAmount; i++)
+        {
+          Serial.print(rfid_status[i]);
+        }
+        Serial.println();
+      }
     }
-    return reader_amount;   
   }
 
-  int RFIDSlaveObject::getRFIDStatus() { 
-    int status = -1;
-    if(m_Readers > 0) {
-      status = makeRequest(I2C_Request::STATUS, m_Readers*sizeof(byte));
+  void RFIDSlaveObject::InitSlave() {
+    bool error = true;
+    uint8_t readerAmount;
+    while(error) {
+
+      // readerAmount = getReaderAmount();
+      if(-1 != readSlaveReaderAmount(readerAmount)) {
+        m_ReaderAmount = readerAmount;
+        error = false;
+        Serial.print("Slave "); Serial.print(m_SlaveNumber); Serial.print(" reports "); Serial.print(m_ReaderAmount); Serial.println(" readers");
+      }
+      else {
+        Serial.print("ERROR: communication with slave "); Serial.println(m_SlaveNumber);
+      }
+
+    delay(1000);
     }
-    return status;
   }
 
-  int RFIDSlaveObject::makeRequest(I2C_Request request, int len) {
-    int data;
+  int RFIDSlaveObject::makeRequest(I2C_Request request, byte* data_received, int len) {
 
     if(len <= 0) {
       Serial.print("ERROR makeRequest() invalid len value: "); Serial.println(len);
@@ -51,23 +75,28 @@ namespace I2CMaster
       return -1;
     }
 
-    while (Wire.available()) {
-      data = Wire.read();
-      Serial.print(data);
-      if(-1 == data) {
-        Serial.println("ERROR: Wire::read() returned -1");
-        return -1;
+    int iter = 0;
+    if(data_received != nullptr)
+    {
+      while (Wire.available()) {
+        data_received[iter] = Wire.read();
+        iter++;
+        // Serial.print(data_received[iter]);
+        if(-1 == data_received[iter]) {
+          Serial.println("ERROR: Wire::read() returned -1");
+          return -1;
+        }
       }
     }
-    Serial.println();
 
-    return data;
+    return 0;
   }
 
 
   I2CRfidMaster::I2CRfidMaster()
   : m_SlaveAmount(0), m_RfidHandler(RfidHandler())
   {
+    Serial.println("calling wire begin");
     Wire.begin();
     m_SlaveArray = (RFIDSlaveObject*)malloc(sizeof(RFIDSlaveObject));
     m_SlaveArrayMapping = (uint8_t*)malloc(sizeof(uint8_t));
@@ -90,6 +119,14 @@ namespace I2CMaster
     Serial.print("Amount of slaves: "); Serial.println(m_SlaveAmount);
   }
 
+  void I2CRfidMaster::InitMaster() 
+  {
+    for(int slave = 0; slave < m_SlaveAmount; slave++)
+    {
+      m_SlaveArray[slave].InitSlave();
+    }
+  }
+
   uint8_t I2CRfidMaster::getSlaveArrayElement(uint8_t slave_no)
   {
     int element = -1;
@@ -107,13 +144,15 @@ namespace I2CMaster
   int I2CRfidMaster::getSlaveRFIDStatus(uint8_t slave_no)
   {
     int status = -1;
-    int element = getSlaveArrayElement(slave_no);
-    if(element != -1) {
-      status = m_SlaveArray[element].getRFIDStatus();
-    }
-    else {
-      Serial.println("Invalid slave number");
-    }
+    // int element = getSlaveArrayElement(slave_no);
+    // if(element != -1) {
+    //   status = m_SlaveArray[element].getRFIDStatus();
+    // }
+    // else {
+    //   Serial.println("Invalid slave number");
+    // }
+
+    m_SlaveArray[0].checkSlaveRfidStatus();
 
     return status;
   }

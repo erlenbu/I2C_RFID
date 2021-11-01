@@ -22,18 +22,24 @@ namespace I2CMaster
   class RFIDSlaveObject
   {
   public:
-    RFIDSlaveObject(uint8_t slave_no) : m_SlaveNumber(slave_no), m_Readers(0) {}
+    RFIDSlaveObject(uint8_t slave_no) : m_SlaveNumber(slave_no), m_ReaderAmount(0) {}
     ~RFIDSlaveObject() {}
-    inline int clearUidCache() { return makeRequest(I2C_Request::CLEAR_UID_CACHE);   }
 
-    int getRFIDStatus();
-    int getReaderAmount();
+    void InitSlave();
+    bool checkSlaveRfidStatus();
+
+    inline int clearUidCache() { return makeRequest(I2C_Request::CLEAR_UID_CACHE);   }
+    inline int getReaderAmount() { return m_ReaderAmount; }
 
   private:
     uint8_t m_SlaveNumber;
-    uint8_t m_Readers; 
+    uint8_t m_ReaderAmount; 
+    TAG_STATUS m_RfidStatus;
+    
 
-    int makeRequest(I2C_Request request, int len = 1);
+    int readSlaveRfidStatus(byte* data);
+    int readSlaveReaderAmount(byte& data);
+    int makeRequest(I2C_Request request, byte* data_received = nullptr, int len = 1);
   };
 
   class I2CRfidMaster
@@ -42,9 +48,13 @@ namespace I2CMaster
     I2CRfidMaster();
     ~I2CRfidMaster();
 
+    void InitMaster();
+
 
     void addI2CSlave(uint8_t slave_no);
 
+
+    //checkSlaveRFIDStatus
     int getSlaveRFIDStatus(uint8_t slave_no);
 
     int getSlaveRFIDSensorAmount(uint8_t slave_no);
