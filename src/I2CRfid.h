@@ -21,20 +21,20 @@ enum I2C_Tags_Status {
 
 /*********************  Master side *********************/
 
-namespace I2CMaster
-{
 
+namespace I2CMaster 
+{
   class RFIDSlaveObject
   {
   public:
-    RFIDSlaveObject(uint8_t slave_no) : m_SlaveNumber(slave_no), m_ReaderAmount(0) {}
+    RFIDSlaveObject(uint8_t slave_no) : m_SlaveNumber(slave_no), m_ReaderAmount(0) { Serial.print("Creating RFIDSlaveObject "); Serial.println(slave_no);}
     ~RFIDSlaveObject() {}
 
     void InitSlave();
-    I2C_Tags_Status checkSlaveRfidStatus();
-
+    
+    uint8_t getReaderAmount() { return m_ReaderAmount; }
     inline int clearUidCache() { return makeRequest(I2C_Request::CLEAR_UID_CACHE);   }
-    inline int getReaderAmount() { return m_ReaderAmount; }
+    int readRfidState(byte* data) { return makeRequest(I2C_Request::STATUS, data, m_ReaderAmount*sizeof(byte)); }
 
   private:
     uint8_t m_SlaveNumber;
@@ -42,9 +42,7 @@ namespace I2CMaster
     TAG_STATUS m_RfidStatus;
     
 
-    inline int readSlaveRfidState(byte* data) { return makeRequest(I2C_Request::STATUS, data, m_ReaderAmount*sizeof(byte)); }
     inline int readSlaveReaderAmount(byte& data) { return makeRequest(I2C_Request::SENSOR_AMOUNT, &data); }
-    I2C_Tags_Status checkTagStatus(I2C_Tags_Status status, byte* data);
     int makeRequest(I2C_Request request, byte* data_received = nullptr, int len = 1);
   };
 
@@ -58,13 +56,13 @@ namespace I2CMaster
 
     void addI2CSlave(uint8_t slave_no);
 
-    int getSlaveRFIDStatus(uint8_t slave_no);
+    int checkGlobalTagStatus();
 
-    int getSlaveRFIDSensorAmount(uint8_t slave_no);
+    int getGlobalReaderAmount();
 
-    void clearSlaveCache(uint8_t slave_no);
+    I2C_Tags_Status checkTagStatus(uint8_t reader_amount, byte* data);
 
-    void addRfidReader(uint8_t ss_pin, uint8_t rst_pin, void(*callback)(int,TAG_STATUS), UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}});
+    void addRfidReader(uint8_t ss_pin, uint8_t rst_pin, UID companion_tag = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}});
 
     void clearCache();
 
@@ -75,11 +73,14 @@ namespace I2CMaster
     uint8_t* m_SlaveArrayMapping;
     uint8_t m_SlaveAmount;
     RfidHandler m_RfidHandler;
+    I2C_Tags_Status m_GlobalStatus;
 
     uint8_t getSlaveArrayElement(uint8_t slave_no);
-  };
 
+    int createGlobalReaderArray(byte* tag_status);
+  };
 }
+
 
 /*********************  Slave side *********************/
 
@@ -102,15 +103,12 @@ namespace I2CSlave
       static uint8_t m_Request;
       static uint8_t m_RfidState;
       static RfidHandler m_RfidHandler;
-      static byte* m_States;
 
       static void I2CWrite(byte* data, uint8_t length = 1);
 
       static void receiveEvent(int num_bytes);
 
       static void requestEvent();
-
-      static  void tagChangeEvent(int id, TAG_STATUS state);
   };
 }
 #endif
