@@ -11,6 +11,11 @@ enum I2C_Request {
   CLEAR_UID_CACHE = 2
 };
 
+enum I2C_Tags_Status {
+  TAGS_MISSING = 0,
+  TAGS_INCORRECT = 1,
+  TAGS_CORRECT = 2
+};
 
 
 
@@ -26,7 +31,7 @@ namespace I2CMaster
     ~RFIDSlaveObject() {}
 
     void InitSlave();
-    bool checkSlaveRfidStatus();
+    I2C_Tags_Status checkSlaveRfidStatus();
 
     inline int clearUidCache() { return makeRequest(I2C_Request::CLEAR_UID_CACHE);   }
     inline int getReaderAmount() { return m_ReaderAmount; }
@@ -37,8 +42,9 @@ namespace I2CMaster
     TAG_STATUS m_RfidStatus;
     
 
-    int readSlaveRfidStatus(byte* data);
-    int readSlaveReaderAmount(byte& data);
+    inline int readSlaveRfidState(byte* data) { return makeRequest(I2C_Request::STATUS, data, m_ReaderAmount*sizeof(byte)); }
+    inline int readSlaveReaderAmount(byte& data) { return makeRequest(I2C_Request::SENSOR_AMOUNT, &data); }
+    I2C_Tags_Status checkTagStatus(I2C_Tags_Status status, byte* data);
     int makeRequest(I2C_Request request, byte* data_received = nullptr, int len = 1);
   };
 
@@ -50,11 +56,8 @@ namespace I2CMaster
 
     void InitMaster();
 
-
     void addI2CSlave(uint8_t slave_no);
 
-
-    //checkSlaveRFIDStatus
     int getSlaveRFIDStatus(uint8_t slave_no);
 
     int getSlaveRFIDSensorAmount(uint8_t slave_no);

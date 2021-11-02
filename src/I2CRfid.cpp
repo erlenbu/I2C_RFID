@@ -5,28 +5,20 @@
 namespace I2CMaster
 {
 
-  int RFIDSlaveObject::readSlaveReaderAmount(byte& data) {
-    return makeRequest(I2C_Request::SENSOR_AMOUNT, &data);   
-  }
+  /******** RFIDSlaveObject ********/
 
-  int RFIDSlaveObject::readSlaveRfidStatus(byte* data) { 
-    return makeRequest(I2C_Request::STATUS, data, m_ReaderAmount*sizeof(byte));
-  }
-
-  bool RFIDSlaveObject::checkSlaveRfidStatus()
+  I2C_Tags_Status RFIDSlaveObject::checkSlaveRfidStatus()
   {
+    I2C_Tags_Status status = I2C_Tags_Status::TAGS_MISSING;
     if(m_ReaderAmount > 0)
     {
-      byte rfid_status[m_ReaderAmount];
-      if(-1 != readSlaveRfidStatus(rfid_status))
+      byte rfid_state[m_ReaderAmount];
+      if(-1 != readSlaveRfidState(rfid_state))
       {
-        for(int i = 0; i < m_ReaderAmount; i++)
-        {
-          Serial.print(rfid_status[i]);
-        }
-        Serial.println();
+        Serial.println(checkTagStatus(I2C_Tags_Status::TAGS_MISSING, rfid_state));
       }
     }
+    return status;
   }
 
   void RFIDSlaveObject::InitSlave() {
@@ -34,7 +26,6 @@ namespace I2CMaster
     uint8_t readerAmount;
     while(error) {
 
-      // readerAmount = getReaderAmount();
       if(-1 != readSlaveReaderAmount(readerAmount)) {
         m_ReaderAmount = readerAmount;
         error = false;
@@ -92,6 +83,36 @@ namespace I2CMaster
     return 0;
   }
 
+  I2C_Tags_Status RFIDSlaveObject::checkTagStatus(I2C_Tags_Status status, byte* data)
+  {
+    uint8_t reader;
+    I2C_Tags_Status tags_status;
+
+    for(reader = 0; reader < m_ReaderAmount; reader++)
+    {
+      if(data[reader] == TAG_STATUS::NOT_PRESENT) 
+      {
+        tags_status = I2C_Tags_Status::TAGS_MISSING;
+        Serial.println("Tags Missing");
+        break;
+      }
+      else if(data[reader] == TAG_STATUS::PRESENT_UNKNOWN_TAG)
+      {
+        tags_status = I2C_Tags_Status::TAGS_INCORRECT;
+      }
+      else
+      {
+        if(I2C_Tags_Status::TAGS_INCORRECT != tags_status)
+        {
+          tags_status = I2C_Tags_Status::TAGS_CORRECT;
+        }
+      }
+    }
+
+    return tags_status;
+  }
+
+  /******** I2CRfidMaster ********/
 
   I2CRfidMaster::I2CRfidMaster()
   : m_SlaveAmount(0), m_RfidHandler(RfidHandler())
@@ -144,13 +165,7 @@ namespace I2CMaster
   int I2CRfidMaster::getSlaveRFIDStatus(uint8_t slave_no)
   {
     int status = -1;
-    // int element = getSlaveArrayElement(slave_no);
-    // if(element != -1) {
-    //   status = m_SlaveArray[element].getRFIDStatus();
-    // }
-    // else {
-    //   Serial.println("Invalid slave number");
-    // }
+
 
     m_SlaveArray[0].checkSlaveRfidStatus();
 
